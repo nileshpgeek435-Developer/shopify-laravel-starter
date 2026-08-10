@@ -2,23 +2,55 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Osiset\ShopifyApp\Contracts\ShopModel as IShopModel;
+use Osiset\ShopifyApp\Traits\ShopModel;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements IShopModel
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory;
+    use Notifiable;
+    use ShopModel;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'shopify_grandfathered',
+        'shopify_namespace',
+        'shopify_freemium',
+        'plan_id',
+        'theme_support_level',
+        'password_updated_at',
+        'shopify_offline_refresh_token',
+        'shopify_offline_access_token_expires_at',
+        'shopify_offline_refresh_token_expires_at',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'shopify_offline_refresh_token',
+    ];
 
     /**
      * Get the attributes that should be cast.
+     *
+     * Do not cast password as hashed — Shopify stores the offline access token there.
      *
      * @return array<string, string>
      */
@@ -26,7 +58,9 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password_updated_at' => 'datetime',
+            'shopify_grandfathered' => 'boolean',
+            'shopify_freemium' => 'boolean',
         ];
     }
 }
