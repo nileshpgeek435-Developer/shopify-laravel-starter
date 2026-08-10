@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -25,12 +24,24 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'name' => 'demo.myshopify.com',
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
+            'password' => 'shpat_test_token_1234567890',
             'remember_token' => Str::random(10),
+            'shopify_grandfathered' => false,
+            'shopify_freemium' => false,
         ];
+    }
+
+    /**
+     * A shop with an offline access token.
+     */
+    public function withOfflineToken(string $token = 'shpat_test_token_1234567890'): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'password' => $token,
+        ]);
     }
 
     /**

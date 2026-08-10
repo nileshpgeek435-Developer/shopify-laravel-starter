@@ -24,4 +24,14 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (\App\Exceptions\ShopifyGraphQlException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => $e->toArray(),
+                ], $e->httpStatus());
+            }
+
+            return null;
+        });
     })->create();
