@@ -1,0 +1,22 @@
+# Root repository ignores (Laravel app ignores live in src/.gitignore)
+
+# Local secrets / env
+.env
+.env.backup
+.env.*.local
+
+# Dependencies / tooling (if ever created at repo root)
+/node_modules/
+/vendor/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs / caches at repo root
+*.log
+.phpunit.result.cache
