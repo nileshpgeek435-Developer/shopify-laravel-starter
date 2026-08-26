@@ -34,4 +34,23 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return null;
         });
+
+        // Visiting /authenticate without ?shop= throws from laravel-shopify — return 400, not 500.
+        $exceptions->render(function (
+            \Osiset\ShopifyApp\Exceptions\MissingShopDomainException $e,
+            Request $request
+        ) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json([
+                    'error' => [
+                        'message' => 'Shop domain required. Pass ?shop=YOUR_STORE.myshopify.com',
+                        'code' => 'missing_shop_domain',
+                    ],
+                ], 400);
+            }
+
+            return response()->view('errors.missing-shop-domain', [
+                'message' => $e->getMessage(),
+            ], 400);
+        });
     })->create();

@@ -455,21 +455,19 @@ return [
 
     'webhooks' => [
         /*
-            [
-                'topic' => env('SHOPIFY_WEBHOOK_1_TOPIC', 'ORDERS_CREATE'),
-                'address' => env('SHOPIFY_WEBHOOK_1_ADDRESS', 'https://example.com/webhook/orders-create')
-            ], [
-                'topic' => env('SHOPIFY_WEBHOOK_2_TOPIC', 'APP_PURCHASES_ONE_TIME_UPDATE'),
-                'address' => env('SHOPIFY_WEBHOOK_2_ADDRESS', 'https://example.com/webhook/purchase'),
-            ]
-            // In certain situations you may wish to map the webhook to a specific class
-            // To do this, change the array to an associative array with a 'class' key
-            'orders-create' => [
-                'topic' => env('SHOPIFY_WEBHOOK_3_TOPIC', 'ORDERS_PAID'),
-                'address' => env('SHOPIFY_WEBHOOK_3_ADDRESS', 'https://example.com/webhook/orders-create'),
-                'class' => \App\Shopify\Actions\ExampleAppJob::class
-            ],
-        */],
+         * Associative keys match the {type} segment of POST /webhook/{type}.
+         * Subscriptions are created/synced on shop auth via DispatchWebhooks → WebhookInstaller.
+         * Override address when the tunnel hostname differs from SHOPIFY_APP_URL.
+         */
+        'app-uninstalled' => [
+            'topic' => 'APP_UNINSTALLED',
+            'address' => env(
+                'SHOPIFY_WEBHOOK_APP_UNINSTALLED_ADDRESS',
+                rtrim((string) env('SHOPIFY_APP_URL', env('APP_URL', '')), '/').'/webhook/app-uninstalled'
+            ),
+            'class' => \App\Jobs\AppUninstalledJob::class,
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

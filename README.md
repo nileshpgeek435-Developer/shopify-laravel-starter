@@ -164,7 +164,7 @@ docker compose exec app php artisan test
 Or PHPUnit filters used during Milestone 6:
 
 ```bash
-docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest"
+docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest|ShopifyWebhookTest"
 ```
 
 ## Useful routes
@@ -172,9 +172,17 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 | Route | Purpose |
 | --- | --- |
 | `/` | Inertia Dashboard (requires `verify.shopify`) |
-| `/authenticate` | Shopify OAuth install/callback |
+| `/authenticate` | Shopify OAuth install/callback (`?shop=` required) |
 | `/api/shop` | JSON shop GraphQL result |
 | `/api/products` | JSON products GraphQL result |
+| `POST /webhook/{type}` | Shopify webhooks (`auth.webhook` HMAC) |
+
+## Webhooks + queue
+
+- Topics/URLs: `config/shopify-app.php` → `webhooks` (starter registers `APP_UNINSTALLED`)
+- HMAC verified by package middleware `auth.webhook`
+- Jobs land on `QUEUE_CONNECTION=database`; Compose service `queue` runs `php artisan queue:work`
+- Verify locally: `docker compose exec app php artisan shopify:verify-webhooks --process`
 
 ## Normal developer workflow
 
@@ -205,3 +213,4 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 - [x] Shopify OAuth (expiring offline tokens)
 - [x] Admin GraphQL (shop + products)
 - [x] Dashboard + API endpoints + tests
+- [x] Webhooks (APP_UNINSTALLED + HMAC + queue worker)
