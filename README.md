@@ -100,7 +100,7 @@ Never commit real `src/.env` or root `.env` secrets.
 2. Set **App URL** to your tunnel URL, e.g. `https://your-tunnel-subdomain.ngrok-free.dev`
 3. Set **Allowed redirection URL(s)** to:
    `https://your-tunnel-subdomain.ngrok-free.dev/authenticate`
-4. Enable Admin API scopes that match `SHOPIFY_API_SCOPES` (at minimum `read_products`, `write_products` for the starter Dashboard).
+4. Enable Admin API scopes that match `SHOPIFY_API_SCOPES` (starter defaults include `read_products`, `write_products`, `read_metaobjects`, `write_metaobjects`). Reinstall/re-auth after changing scopes.
 5. Copy Client ID / Secret into `src/.env` as `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET`.
 6. Keep `APP_URL` and `SHOPIFY_APP_URL` equal to the tunnel URL (no trailing slash).
 
@@ -164,7 +164,7 @@ docker compose exec app php artisan test
 Or PHPUnit filters used during Milestone 6:
 
 ```bash
-docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest|ShopifyWebhookTest|ShopifyBilling"
+docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest|ShopifyWebhookTest|ShopifyBilling|ShopifyMetafield|ShopifyMetaobject|ShopifyEmbedded"
 ```
 
 ## Useful routes
@@ -175,6 +175,12 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 | `/authenticate` | Shopify OAuth install/callback (`?shop=` required) |
 | `/api/shop` | JSON shop GraphQL result |
 | `/api/products` | JSON products GraphQL result |
+| `/api/metafields` | List metafields for an owner (`owner_id` required) |
+| `POST /api/metafields` | Create/update a metafield (`metafieldsSet`) |
+| `/api/metaobjects?type=` | List metaobjects by type |
+| `/api/metaobjects/{id}` | Fetch a metaobject |
+| `POST /api/metaobjects` | Create a metaobject entry |
+| `PATCH /api/metaobjects/{id}` | Update a metaobject entry |
 | `POST /webhook/{type}` | Shopify webhooks (`auth.webhook` HMAC) |
 | `/plans` | Inertia billing UI (app plans + status) |
 | `/billing/{plan}` | Package: start Shopify charge confirmation |
@@ -205,6 +211,59 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 2. Re-run `ShopifyPlanSeeder`
 3. Refresh `/plans` — React reads plans from the backend only
 
+## Metafields & Metaobjects
+
+Shopify custom data for apps:
+
+- **Metafields** — key/value extras attached to resources (Shop, Product, Customer, …)
+- **Metaobjects** — reusable structured entries defined by a MetaobjectDefinition (type + fields)
+
+### Service layer
+
+- `App\Services\Shopify\ShopifyMetafieldService` — list/get/set via Admin GraphQL (`HasMetafields` + `metafieldsSet`)
+- `App\Services\Shopify\ShopifyMetaobjectService` — list/find/create/update (`metaobjects`, `metaobjectCreate`, `metaobjectUpdate`)
+- Both reuse `ShopifyAdminApi::graph()` and throw `ShopifyGraphQlException` (including mutation `userErrors` as `invalid_input` / HTTP 422)
+
+Example:
+
+```php
+$metafields = app(ShopifyMetafieldService::class)->forShop($shop);
+$metafields->listForOwner($shopGid, 'custom');
+$metafields->setOne($productGid, 'custom', 'material', 'cotton');
+
+$metaobjects = app(ShopifyMetaobjectService::class)->forShop($shop);
+$metaobjects->list('size_chart');
+$metaobjects->create([
+    'type' => 'size_chart',
+    'handle' => 'winter',
+    'fields' => [['key' => 'title', 'value' => 'Winter']],
+]);
+```
+
+### Scopes
+
+Update Partners + `SHOPIFY_API_SCOPES`, then reinstall/re-auth:
+
+- Product metafields: `read_products` / `write_products` (already required by the starter)
+- Metaobject entries: `read_metaobjects` / `write_metaobjects`
+- Creating definitions (not covered by this starter): `read_metaobject_definitions` / `write_metaobject_definitions`
+
+### GraphQL notes
+
+- Prefer GraphQL variables (services never interpolate secrets into documents)
+- `metafieldsSet` creates or updates by owner + namespace + key
+- Metaobject `create` requires an existing definition for `type`
+- Prefer `fields` on update for partial patches; `values` replaces the full map
+- Dashboard shows a small shop-metafields demo only; use the `/api/*` routes for full CRUD
+
+### Tests
+
+```bash
+docker compose exec app php artisan test --filter="ShopifyMetafield|ShopifyMetaobject"
+```
+
+Mocks `BasicShopifyAPI` / services — no live Shopify calls.
+
 ## Normal developer workflow
 
 1. `git clone` → `cp .env.example .env` → `cp src/.env.example src/.env`
@@ -219,13 +278,13 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 10. Install app on a development store
 11. Confirm Dashboard loads shop + products; open `/plans` for billing
 12. `docker compose exec app php artisan test`
-13. Build features on top of `ShopifyAdminApi` / `ShopifyBillingService`
+13. Build features on top of `ShopifyAdminApi` / `ShopifyBillingService` / metafield & metaobject services
 
 ## Architecture notes
 
 - Shop model: `App\Models\User` implements package `ShopModel` (offline token stored in `password`; do not cast it as hashed).
 - GraphQL client path: `$shop->api()->graph(...)` via `gnikyt/basic-shopify-api`.
-- Reusable services: `App\Services\Shopify\ShopifyAdminApi`, `App\Services\Shopify\ShopifyBillingService`.
+- Reusable services: `ShopifyAdminApi`, `ShopifyBillingService`, `ShopifyMetafieldService`, `ShopifyMetaobjectService`.
 - Errors: `App\Exceptions\ShopifyGraphQlException`, `App\Exceptions\ShopifyBillingException`.
 - Billing tables/models: package `plans` + `charges` (do not duplicate).
 
@@ -251,3 +310,4 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 - [x] Webhooks (APP_UNINSTALLED + HMAC + queue worker)
 - [x] Billing foundation (plans UI + package charge flow)
 - [x] Embedded App Bridge (CDN + Inertia session tokens)
+- [x] Metafields & Metaobjects (GraphQL services + API demo endpoints)

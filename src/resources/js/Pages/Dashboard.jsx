@@ -7,6 +7,7 @@ export default function Dashboard({
     shop,
     products = [],
     hasNextPage = false,
+    shopMetafields = [],
     error = null,
 }) {
     const { shopify = {} } = usePage().props;
@@ -67,6 +68,42 @@ export default function Dashboard({
                                 {product.totalInventory ?? '—'}
                             </li>
                         ))}
+                    </ul>
+                )}
+            </section>
+
+            <section style={{ marginTop: 28 }}>
+                <h2>Shop metafields (demo)</h2>
+                <p style={{ color: '#555', fontSize: 14 }}>
+                    Shows namespace <code>starter</code> only (via ShopifyMetafieldService). Use
+                    /api/metafields and /api/metaobjects for full CRUD. Sensitive keys are redacted.
+                </p>
+                {shopMetafields.length === 0 ? (
+                    <p>No starter.* shop metafields yet.</p>
+                ) : (
+                    <ul style={{ paddingLeft: 18 }}>
+                        {shopMetafields.map((field) => {
+                            const label = `${field.namespace}.${field.key}`;
+                            const sensitive = /secret|password|token|private|credential/i.test(
+                                field.key || '',
+                            );
+                            const raw = field.value ?? '—';
+                            const display = sensitive
+                                ? '[redacted]'
+                                : raw.length > 120
+                                  ? `${raw.slice(0, 120)}…`
+                                  : raw;
+
+                            return (
+                                <li key={field.id || label} style={{ marginBottom: 8 }}>
+                                    <strong>{label}</strong>
+                                    {' — '}
+                                    {field.type}
+                                    {' — '}
+                                    {display}
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </section>

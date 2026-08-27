@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MetafieldController;
+use App\Http\Controllers\MetaobjectController;
 use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,5 +21,17 @@ Route::middleware(['verify.shopify'])->group(function () {
     Route::prefix('api')->group(function () {
         Route::get('/shop', [ShopifyController::class, 'shop'])->name('api.shop');
         Route::get('/products', [ShopifyController::class, 'products'])->name('api.products');
+
+        Route::get('/metafields', [MetafieldController::class, 'index'])->name('api.metafields.index');
+        Route::post('/metafields', [MetafieldController::class, 'store'])->name('api.metafields.store');
+
+        Route::get('/metaobjects', [MetaobjectController::class, 'index'])->name('api.metaobjects.index');
+        Route::post('/metaobjects', [MetaobjectController::class, 'store'])->name('api.metaobjects.store');
+        Route::get('/metaobjects/{id}', [MetaobjectController::class, 'show'])
+            ->where('id', '.*')
+            ->name('api.metaobjects.show');
+        Route::patch('/metaobjects/{id}', [MetaobjectController::class, 'update'])
+            ->where('id', '.*')
+            ->name('api.metaobjects.update');
     });
 });

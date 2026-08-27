@@ -17,6 +17,8 @@ class ShopifyGraphQlException extends RuntimeException
 
     public const CODE_NOT_FOUND = 'not_found';
 
+    public const CODE_INVALID_INPUT = 'invalid_input';
+
     public const CODE_TRANSPORT = 'transport_error';
 
     public const CODE_UNEXPECTED = 'unexpected_response';
@@ -55,6 +57,7 @@ class ShopifyGraphQlException extends RuntimeException
             self::CODE_MISSING_TOKEN, self::CODE_UNAUTHORIZED => 401,
             self::CODE_ACCESS_DENIED => 403,
             self::CODE_NOT_FOUND => 404,
+            self::CODE_INVALID_INPUT => 422,
             self::CODE_RATE_LIMITED => 429,
             default => 502,
         };
@@ -68,6 +71,7 @@ class ShopifyGraphQlException extends RuntimeException
             self::CODE_UNAUTHORIZED => 'The access token is invalid or expired. Re-authenticate the app.',
             self::CODE_RATE_LIMITED => 'Shopify rate limit hit. Try again in a moment.',
             self::CODE_NOT_FOUND => 'Shop record was not found. Install the app first.',
+            self::CODE_INVALID_INPUT => 'Fix the GraphQL input (check metafield/metaobject fields) and retry.',
             default => null,
         };
     }

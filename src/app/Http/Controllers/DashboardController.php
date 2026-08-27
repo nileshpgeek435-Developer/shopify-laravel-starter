@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ShopifyGraphQlException;
 use App\Services\Shopify\ShopifyAdminApi;
+use App\Services\Shopify\ShopifyMetafieldService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -12,8 +13,11 @@ use Osiset\ShopifyApp\Contracts\ShopModel;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request, ShopifyAdminApi $shopify): Response
-    {
+    public function __invoke(
+        Request $request,
+        ShopifyAdminApi $shopify,
+        ShopifyMetafieldService $metafields,
+    ): Response {
         $user = $request->user();
 
         if (! $user instanceof ShopModel) {
@@ -25,6 +29,7 @@ class DashboardController extends Controller
         $shop = null;
         $products = [];
         $hasNextPage = false;
+        $shopMetafields = [];
         $error = null;
 
         try {
@@ -46,10 +51,23 @@ class DashboardController extends Controller
             }
         }
 
+        // Soft-fail metafield demo: only the starter namespace (avoid dumping other apps' data/secrets).
+        if ($shop !== null && isset($shop['id'])) {
+            try {
+                $shopMetafields = $metafields
+                    ->forShop($user)
+                    ->listForOwner((string) $shop['id'], 'starter', 10);
+            } catch (ShopifyGraphQlException $e) {
+                Log::notice('Dashboard metafield demo load failed', $e->toArray() + $e->context);
+                $shopMetafields = [];
+            }
+        }
+
         return Inertia::render('Dashboard', [
             'shop' => $shop,
             'products' => $products,
             'hasNextPage' => $hasNextPage,
+            'shopMetafields' => $shopMetafields,
             'error' => $error,
             'shopDomain' => $user->getDomain()->toNative(),
             'host' => $request->get('host'),

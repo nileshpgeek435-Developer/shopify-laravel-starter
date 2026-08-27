@@ -36,5 +36,14 @@ class ShopifyGraphQlExceptionTest extends TestCase
         );
 
         $this->assertSame(404, $notFound->httpStatus());
+
+        $invalid = new ShopifyGraphQlException(
+            'Key is invalid',
+            errorCode: ShopifyGraphQlException::CODE_INVALID_INPUT,
+        );
+
+        $this->assertSame(422, $invalid->httpStatus());
+        $this->assertNotNull($invalid->userHint());
+        $this->assertSame('invalid_input', $invalid->toArray()['code']);
     }
 }
