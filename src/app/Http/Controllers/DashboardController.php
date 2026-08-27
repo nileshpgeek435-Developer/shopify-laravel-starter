@@ -51,6 +51,9 @@ class DashboardController extends Controller
             'products' => $products,
             'hasNextPage' => $hasNextPage,
             'error' => $error,
+            'shopDomain' => $user->getDomain()->toNative(),
+            'host' => $request->get('host'),
+            'locale' => $request->get('locale'),
         ]);
     }
 }

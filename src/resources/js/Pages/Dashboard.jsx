@@ -1,9 +1,23 @@
-export default function Dashboard({ shop, products = [], hasNextPage = false, error = null }) {
+import { usePage } from '@inertiajs/react';
+
+import { onAppLinkClick } from '../Shopify/navigation';
+import { withShopifyQuery } from '../Shopify/context';
+
+export default function Dashboard({
+    shop,
+    products = [],
+    hasNextPage = false,
+    error = null,
+}) {
+    const { shopify = {} } = usePage().props;
     const planName = shop?.plan?.displayName || '—';
     const isDevPlan = Boolean(shop?.plan?.partnerDevelopment);
+    const billingHref = withShopifyQuery('/plans', shopify, {
+        shop: shopify.shopDomain || shop?.myshopifyDomain,
+    });
 
     return (
-        <main style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 900, margin: '40px auto', padding: '0 20px' }}>
+        <main style={{ maxWidth: 900, margin: '40px auto', padding: '0 20px' }}>
             <h1 style={{ marginBottom: 8 }}>{shop?.name?.trim() || 'Dashboard'}</h1>
             <p style={{ color: '#555', marginTop: 0 }}>{shop?.myshopifyDomain || ''}</p>
 
@@ -26,6 +40,14 @@ export default function Dashboard({ shop, products = [], hasNextPage = false, er
                         {isDevPlan ? ' (development)' : ''}
                     </p>
                     <p>Domain: {shop.primaryDomain?.host || '—'}</p>
+                    <p>
+                        <a
+                            href={billingHref}
+                            onClick={(event) => onAppLinkClick(event, '/plans', shopify)}
+                        >
+                            Manage app billing →
+                        </a>
+                    </p>
                 </section>
             )}
 

@@ -164,7 +164,7 @@ docker compose exec app php artisan test
 Or PHPUnit filters used during Milestone 6:
 
 ```bash
-docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest|ShopifyWebhookTest"
+docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlExceptionTest|ShopifyAdminApiTest|ShopifyApiEndpointsTest|ShopifyWebhookTest|ShopifyBilling"
 ```
 
 ## Useful routes
@@ -176,6 +176,9 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 | `/api/shop` | JSON shop GraphQL result |
 | `/api/products` | JSON products GraphQL result |
 | `POST /webhook/{type}` | Shopify webhooks (`auth.webhook` HMAC) |
+| `/plans` | Inertia billing UI (app plans + status) |
+| `/billing/{plan}` | Package: start Shopify charge confirmation |
+| `/billing/process/{plan}` | Package: billing confirmation callback |
 
 ## Webhooks + queue
 
@@ -183,6 +186,24 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 - HMAC verified by package middleware `auth.webhook`
 - Jobs land on `QUEUE_CONNECTION=database`; Compose service `queue` runs `php artisan queue:work`
 - Verify locally: `docker compose exec app php artisan shopify:verify-webhooks --process`
+
+## Billing
+
+- Plan definitions: `src/config/shopify-plans.php` (Free freemium + Basic/Pro placeholders)
+- Sync paid plans into package `plans` table: `docker compose exec app php artisan db:seed --class=ShopifyPlanSeeder`
+- App service: `App\Services\Shopify\ShopifyBillingService`
+- UI: Inertia `Billing` page at `/plans`
+- Subscribe hand-off: app → package `/billing/{plan}` → Shopify confirmation → `/billing/process/{plan}`
+- Enable with `SHOPIFY_BILLING_ENABLED=true` and `SHOPIFY_BILLING_FREEMIUM_ENABLED=true`
+- Development charges: keep `SHOPIFY_BILLING_TEST_CHARGES=true`
+- Paid feature check: `$billing->hasActivePaidPlan($shop)`
+- Tests mock package actions — they never call live Shopify billing APIs
+
+### Add a new paid plan
+
+1. Add an entry under `paid` in `config/shopify-plans.php`
+2. Re-run `ShopifyPlanSeeder`
+3. Refresh `/plans` — React reads plans from the backend only
 
 ## Normal developer workflow
 
@@ -192,19 +213,33 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 4. `docker compose exec app composer install`
 5. `docker compose exec app php artisan key:generate`
 6. `docker compose exec app php artisan migrate`
-7. `cd src && npm install && npm run build`
-8. Start HTTPS tunnel → align Partners URLs + `APP_URL` / `SHOPIFY_APP_URL`
-9. Install app on a development store
-10. Confirm Dashboard loads shop + products
-11. `docker compose exec app php artisan test`
-12. Build features on top of `App\Services\Shopify\ShopifyAdminApi`
+7. `docker compose exec app php artisan db:seed --class=ShopifyPlanSeeder`
+8. `cd src && npm install && npm run build`
+9. Start HTTPS tunnel → align Partners URLs + `APP_URL` / `SHOPIFY_APP_URL`
+10. Install app on a development store
+11. Confirm Dashboard loads shop + products; open `/plans` for billing
+12. `docker compose exec app php artisan test`
+13. Build features on top of `ShopifyAdminApi` / `ShopifyBillingService`
 
 ## Architecture notes
 
 - Shop model: `App\Models\User` implements package `ShopModel` (offline token stored in `password`; do not cast it as hashed).
 - GraphQL client path: `$shop->api()->graph(...)` via `gnikyt/basic-shopify-api`.
-- Reusable service: `App\Services\Shopify\ShopifyAdminApi`.
-- Errors: `App\Exceptions\ShopifyGraphQlException`.
+- Reusable services: `App\Services\Shopify\ShopifyAdminApi`, `App\Services\Shopify\ShopifyBillingService`.
+- Errors: `App\Exceptions\ShopifyGraphQlException`, `App\Exceptions\ShopifyBillingException`.
+- Billing tables/models: package `plans` + `charges` (do not duplicate).
+
+## Embedded App Bridge
+
+- CDN App Bridge (no npm App Bridge package): loaded in `resources/views/app.blade.php`
+- Public Client ID only via `<meta name="shopify-api-key">` (never the API secret)
+- Frontend module: `resources/js/Shopify/` (`appBridge`, `session`, `navigation`, `context`)
+- Layout: `resources/js/Layouts/AppLayout.jsx` (Dashboard / Billing nav)
+- Inertia XHR attaches `Authorization: Bearer <session token>` from `shopify.idToken()`
+- Shared Inertia props: `shopify.apiKey`, `shopify.shopDomain`, `shopify.host`, `shopify.embedded`
+- Prefer `SHOPIFY_FRONTEND_TYPE=SPA` for Inertia (see `src/.env.example`)
+- iframe CSP remains `App\Http\Middleware\IframeProtection` (`frame-ancestors` for the shop + admin.shopify.com)
+- OAuth (`/authenticate`) and package billing (`/billing/*`) stay full-page flows
 
 ## Status
 
@@ -214,3 +249,5 @@ docker compose exec app php vendor/bin/phpunit --filter "ShopifyGraphQlException
 - [x] Admin GraphQL (shop + products)
 - [x] Dashboard + API endpoints + tests
 - [x] Webhooks (APP_UNINSTALLED + HMAC + queue worker)
+- [x] Billing foundation (plans UI + package charge flow)
+- [x] Embedded App Bridge (CDN + Inertia session tokens)

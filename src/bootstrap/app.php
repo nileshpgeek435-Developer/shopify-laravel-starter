@@ -35,6 +35,16 @@ return Application::configure(basePath: dirname(__DIR__))
             return null;
         });
 
+        $exceptions->render(function (\App\Exceptions\ShopifyBillingException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => $e->toArray(),
+                ], $e->httpStatus());
+            }
+
+            return null;
+        });
+
         // Visiting /authenticate without ?shop= throws from laravel-shopify — return 400, not 500.
         $exceptions->render(function (
             \Osiset\ShopifyApp\Exceptions\MissingShopDomainException $e,

@@ -3,8 +3,15 @@ import '../css/app.css';
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { createInertiaApp, router } from '@inertiajs/react';
 
-import { createInertiaApp } from '@inertiajs/react';
+import AppLayout from './Layouts/AppLayout';
+import { bootstrapShopifyEmbeddedApp } from './Shopify';
+
+bootstrapShopifyEmbeddedApp({
+    router,
+    axios: window.axios,
+});
 
 createInertiaApp({
     resolve: (name) => {
@@ -12,7 +19,13 @@ createInertiaApp({
             eager: true,
         });
 
-        return pages[`./Pages/${name}.jsx`];
+        const page = pages[`./Pages/${name}.jsx`];
+
+        if (page?.default && page.default.layout === undefined) {
+            page.default.layout = (pageElement) => <AppLayout>{pageElement}</AppLayout>;
+        }
+
+        return page;
     },
 
     setup({ el, App, props }) {
